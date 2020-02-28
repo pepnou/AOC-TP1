@@ -28,8 +28,8 @@ elem_t baseline (unsigned n, elem_t a[n][n]) {
   unsigned i, j;
   elem_t s = {1.0, 1.0, 1.0};
 
-  for(j=0; j<n; j++) {
-    for (i=0; i<n; i++) {
+  for(i=0; i<n; i++) {
+    for (j=0; j<n; j++) {
       s.x += a[i][j].x;
       s.y += a[i][j].y;
       s.z += a[i][j].z;
@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
   }
 
   int i, m;
+  double avgt = 0.0;
 
   /* get command line arguments */
   unsigned size = atoi (argv[1]); /* matrix size */
@@ -79,8 +80,10 @@ int main(int argc, char** argv) {
     if (m == 0) {
       for (i=0; i<repw; i++)
         b = baseline(size, a);
+      printf("%lf %lf %lf\n", b.x, b.y, b.z);
     } else {
       b = baseline(size, a);
+      printf("%lf %lf %lf\n", b.x, b.y, b.z);
     }
 
     /* measure repm repetitions */
@@ -94,12 +97,16 @@ int main(int argc, char** argv) {
       printf("%lf %lf %lf\n", b.x, b.y, b.z);
 
     /* print performance */
-    fprintf (stderr, "%ld cycles/iter\n",
-        (t2 - t1) / (size * size));
+    fprintf (stderr, "%.2f cycles/iter\n",
+        (t2 - t1) / (float)(size * size * repm));
+
+    avgt += (t2 - t1);
 
     /* free arrays */
     free (a);
   }
+
+  fprintf(stderr, "avg : %.2lf\n", avgt / (size * size * repm * NB_METAS));
 
   return EXIT_SUCCESS;
 }
