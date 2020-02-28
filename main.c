@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <omp.h>
 
 #ifdef __i386
 uint64_t rdtsc() {
@@ -19,43 +20,25 @@ uint64_t rdtsc() {
 #define NB_METAS 31
 
 typedef struct {
-  double *x;
-  double *y;
-  double *z;
+  double * restrict x;
+  double * restrict y;
+  double * restrict z;
 } elem_t;
 
 void baseline (unsigned n, elem_t a, elem_t s) {
   unsigned i;
-  double x0=0.0, x1=0.0, x2=0.0, x3=0.0;
-  double y0=0.0, y1=0.0, y2=0.0, y3=0.0;
-  double z0=0.0, z1=0.0, z2=0.0, z3=0.0;
+  double x=1.0, y=1.0, z=1.0;
 
-  for(i=0; i <= n*n - 4; i += 4) {
-    x0 += a.x[i];
-    x1 += a.x[i+1];
-    x2 += a.x[i+2];
-    x3 += a.x[i+3];
-
-    y0 += a.y[i];
-    y1 += a.y[i+1];
-    y2 += a.y[i+2];
-    y3 += a.y[i+3];
-
-    z0 += a.z[i];
-    z1 += a.z[i+1];
-    z2 += a.z[i+2];
-    z3 += a.z[i+3];
+#pragma omp parallel for reduction(+ : x,y,z) schedule(static)
+  for(i=0; i < n*n; i++) {
+    x += a.x[i];
+    y += a.y[i];
+    z += a.z[i];
   }
 
-  for(; i < n*n; i++) {
-    x0 += a.x[i];
-    y0 += a.y[i];
-    z0 += a.z[i];
-  }
-
-  *(s.x) = x0+x1+x2+x3+1.0;
-  *(s.y) = y0+y1+y2+y3+1.0;
-  *(s.z) = z0+z1+z2+z3+1.0;
+  *(s.x) = x;
+  *(s.y) = y;
+  *(s.z) = z;
 }
 
 static void init_array (int n, elem_t a) {
@@ -121,22 +104,25 @@ int main(int argc, char** argv) {
     /* print output */
       printf("%lf %lf %lf\n", *(b.x), *(b.y), *(b.z));
 
+    double cpi = (t2 - t1) / (float)(size * size * repm);
+
     /* print performance */
     fprintf (stderr, "%.2f cycles/iter\n",
-        (t2 - t1) / (float)(size * size * repm));
+        cpi);
 
-    avgt += (t2 - t1);
+    avgt += cpi;
 
     /* free arrays */
     free (a.x);
     free (a.y);
     free (a.z);
+    
     free (b.x);
     free (b.y);
     free (b.z);
   }
 
-  fprintf(stderr, "avg : %.2lf\n", avgt / (size * size * repm * NB_METAS));
+  fprintf(stderr, "avg : %.2lf\n", avgt / NB_METAS);
 
   return EXIT_SUCCESS;
 }
